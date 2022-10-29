@@ -8,7 +8,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny ,IsAuthenticated
 
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate,login
+
+from .models import *
+from .serializers import *
 
 import logging,traceback
 logger=logging.getLogger(__name__)
@@ -32,7 +35,6 @@ class InitializeWallet(APIView):
 	                    },
 	                    "status": "success"
 	                },
-	                template_name=None
 	            )
         	else:
         		return Response(
@@ -40,7 +42,6 @@ class InitializeWallet(APIView):
 	                    "data": {},
 	                    "status": "error"
 	                },
-	                template_name=None
 	            )
         except Exception as e:
         	logger.error(e,exc_info=True)
@@ -49,5 +50,41 @@ class InitializeWallet(APIView):
                     "data": {},
                     "status": status.HTTP_500_INTERNAL_SERVER_ERROR
                 },
-                template_name=None
+            )
+
+
+class EnableWallet(APIView):
+
+	permission_classes = (AllowAny,)
+
+	def post(self,request):
+		try:
+			token = request.headers.get('Token')
+			token_data = Token.objects.filter(key=token).first()
+			user_id = token_data.user_id
+			wallet = Wallet.objects.get(owned_by_id=user_id)
+			if wallet.status == 'Enabled':
+				return Response(
+	                {
+	                    "data": {},
+	                    "status": "Already Enabled"
+	                },
+	            )
+			else:
+				wallet.status = 'Enabled'
+				wallet.save()
+				wallet_data = WalletSerializer(wallet).data
+				return Response(
+	                {
+	                    "data": wallet_data,
+	                    "status": "success"
+	                },
+	            )
+		except Exception as e:
+			logger.error(e,exc_info=True)
+			return Response(
+                {
+                    "data": {},
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR
+                },
             )

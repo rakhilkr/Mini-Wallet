@@ -21,3 +21,15 @@ POST --> Add virtual money to my wallet
 POST --> Use virtual money from my wallet
 
 PATCH --> Disable my wallet
+
+
+Installation
+Python and Django need to be installed
+
+pip install -r requirements.txt
+
+Usage
+Go to the Mini-Wallet folder and run
+
+python manage.py runserver
+Then go to the browser and enter the url http://127.0.0.1:8000/

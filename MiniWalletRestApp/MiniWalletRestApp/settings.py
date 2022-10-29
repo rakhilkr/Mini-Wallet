@@ -138,7 +138,6 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
 
     'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.TemplateHTMLRenderer',
         'djangorestframework_camel_case.render.CamelCaseJSONRenderer', #for camelCase formate
         'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
         'rest_framework_xml.renderers.XMLRenderer',

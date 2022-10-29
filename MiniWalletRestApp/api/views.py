@@ -57,6 +57,28 @@ class EnableWallet(APIView):
 
 	permission_classes = (AllowAny,)
 
+	def get(self, request):
+		try:
+			token = request.headers.get('Token')
+			token_data = Token.objects.filter(key=token).first()
+			user_id = token_data.user_id
+			wallet = Wallet.objects.get(owned_by_id=user_id)
+			wallet_data = WalletSerializer(wallet).data
+			return Response(
+                {
+                    "data": wallet_data,
+                    "status": "success"
+                },
+            )
+		except Exception as e:
+			logger.error(e,exc_info=True)
+			return Response(
+                {
+                    "data": {},
+                    "status": status.HTTP_403_FORBIDDEN
+                },
+            )
+
 	def post(self,request):
 		try:
 			token = request.headers.get('Token')
@@ -85,6 +107,6 @@ class EnableWallet(APIView):
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR
+                    "status": status.HTTP_403_FORBIDDEN
                 },
             )

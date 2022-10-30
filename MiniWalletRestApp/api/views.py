@@ -13,6 +13,8 @@ from django.contrib.auth import authenticate,login
 from .models import *
 from .serializers import *
 
+from datetime import datetime
+
 import logging,traceback
 logger=logging.getLogger(__name__)
 
@@ -110,3 +112,102 @@ class EnableWallet(APIView):
                     "status": status.HTTP_403_FORBIDDEN
                 },
             )
+
+	def patch(self, request):
+		try:
+			token = request.POST.get('Token')
+			token_data = Token.objects.filter(key=token).first()
+			user_id = token_data.user_id
+			wallet = Wallet.objects.get(owned_by_id=user_id)
+			if request.POST.get('is_disabled') == True:
+				wallet.status = 'Disabled'
+				wallet.save()
+				wallet_data = WalletSerializer(wallet).data
+				return Response(
+	                {
+	                    "data": wallet_data,
+	                    "status": "success"
+	                },
+	            )
+			else:
+				return Response(
+	                {
+	                    "data": wallet_data,
+	                    "status": "Already Disabled"
+	                },
+	            )
+		except Exception as e:
+			logger.error(e,exc_info=True)
+			return Response(
+                {
+                    "data": {},
+                    "status": status.HTTP_403_FORBIDDEN
+                },
+            )
+
+
+class WalletDeposit(APIView):
+
+	def post(self,request):
+		try:
+			token = request.headers.get('Token')
+			token_data = Token.objects.filter(key=token).first()
+			user_id = token_data.user_id
+			amount = request.POST["amount"]
+			reference_id = request.POST["reference_id"]
+			dep = Deposit()
+			dep.deposited_by_id = user_id
+			dep.status = 'success'
+			dep.deposited_at = datetime.now()
+			dep.amount = amount
+			dep.reference_id = reference_id
+			dep.save()
+			deposit_data = DepositSerializer(dep).data
+			return Response(
+                {
+                    "data": deposit_data,
+                    "status": "success"
+                },
+            )
+		except Exception as e:
+			logger.error(e,exc_info=True)
+			return Response(
+                {
+                    "data": {},
+                    "status": status.HTTP_403_FORBIDDEN
+                },
+            )
+
+
+class WalletWithdrawel(APIView):
+
+	def post(self,request):
+		try:
+			token = request.headers.get('Token')
+			token_data = Token.objects.filter(key=token).first()
+			user_id = token_data.user_id
+			amount = request.POST["amount"]
+			reference_id = request.POST["reference_id"]
+			dep = Withdrawal()
+			dep.withdrawn_by_id = user_id
+			dep.status = 'success'
+			dep.withdrawn_at = datetime.now()
+			dep.amount = amount
+			dep.reference_id = reference_id
+			dep.save()
+			withdraw_data = DepositSerializer(dep).data
+			return Response(
+                {
+                    "data": deposit_data,
+                    "status": "success"
+                },
+            )
+		except Exception as e:
+			logger.error(e,exc_info=True)
+			return Response(
+                {
+                    "data": {},
+                    "status": status.HTTP_403_FORBIDDEN
+                },
+            )
+

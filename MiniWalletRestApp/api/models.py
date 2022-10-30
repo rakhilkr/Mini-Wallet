@@ -23,7 +23,8 @@ class Wallet(models.Model):
 
 class Withdrawal(models.Model):
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-	withdrawn_by = models.ForeignKey(User,on_delete=models.CASCADE)   
+	withdrawn_by = models.ForeignKey(User,on_delete=models.CASCADE) 
+	# wallet = models.ForeignKey(Wallet,on_delete=models.CASCADE)    
 	status = models.CharField(max_length=100)
 	withdrawn_at = models.DateTimeField()
 	amount = models.IntegerField()   
@@ -31,3 +32,16 @@ class Withdrawal(models.Model):
 
 	class Meta:
 		db_table = "withdrawal"
+
+
+class Deposit(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	deposited_by = models.ForeignKey(User,on_delete=models.CASCADE)
+	# wallet = models.ForeignKey(Wallet,on_delete=models.CASCADE)   
+	status = models.CharField(max_length=100)
+	deposited_at = models.DateTimeField()
+	amount = models.IntegerField()   
+	reference_id = models.CharField(max_length=500) 
+
+	class Meta:
+		db_table = "deposit"

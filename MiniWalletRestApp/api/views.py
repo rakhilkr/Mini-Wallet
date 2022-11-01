@@ -6,7 +6,7 @@ from rest_framework.response import Response # get a perticular response every t
 from rest_framework import status # basically sent back status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny ,IsAuthenticated
-
+from django.db import transaction
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,login
 
@@ -144,28 +144,33 @@ class WalletDeposit(APIView):
 
 	def post(self,request):
 		try:
-			amount = request.POST["amount"]
-			reference_id = request.POST["reference_id"]
-			dep = Deposit()
-			dep.deposited_by_id = request.user.id
-			dep.status = 'success'
-			dep.deposited_at = datetime.now()
-			dep.amount = amount
-			dep.reference_id = reference_id
-			dep.save()
-			deposit_data = DepositSerializer(dep).data
-			return Response(
-                {
-                    "data": deposit_data,
-                    "status": "success"
-                },
-            )
+			with transaction.atomic():
+				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
+				amount = request.POST["amount"]
+				reference_id = request.POST["reference_id"]
+				dep = Deposit()
+				dep.deposited_by_id = request.user.id
+				dep.status = 'success'
+				dep.deposited_at = datetime.now()
+				dep.amount = amount
+				dep.wallet = wallet
+				dep.reference_id = reference_id
+				dep.save()
+				wallet.balance += amount
+				wallet.save()
+				deposit_data = DepositSerializer(dep).data
+				return Response(
+	                {
+	                    "data": deposit_data,
+	                    "status": "success"
+	                },
+	            )
 		except Exception as e:
 			logger.error(e,exc_info=True)
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_403_FORBIDDEN
+                    "status": e
                 },
             )
 
@@ -176,28 +181,33 @@ class WalletWithdrawel(APIView):
 
 	def post(self,request):
 		try:
-			amount = request.POST["amount"]
-			reference_id = request.POST["reference_id"]
-			dep = Withdrawal()
-			dep.withdrawn_by_id = request.user.id
-			dep.status = 'success'
-			dep.withdrawn_at = datetime.now()
-			dep.amount = amount
-			dep.reference_id = reference_id
-			dep.save()
-			withdraw_data = DepositSerializer(dep).data
-			return Response(
-                {
-                    "data": deposit_data,
-                    "status": "success"
-                },
-            )
+			with transaction.atomic():
+				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
+				amount = request.POST["amount"]
+				reference_id = request.POST["reference_id"]
+				dep = Withdrawal()
+				dep.withdrawn_by_id = request.user.id
+				dep.status = 'success'
+				dep.withdrawn_at = datetime.now()
+				dep.amount = amount
+				dep.reference_id = reference_id
+				dep.wallet = wallet
+				dep.save()
+				wallet.balance -= amount
+				wallet.save()
+				withdraw_data = DepositSerializer(dep).data
+				return Response(
+	                {
+	                    "data": deposit_data,
+	                    "status": "success"
+	                },
+	            )
 		except Exception as e:
 			logger.error(e,exc_info=True)
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_403_FORBIDDEN
+                    "status": e
                 },
             )
 

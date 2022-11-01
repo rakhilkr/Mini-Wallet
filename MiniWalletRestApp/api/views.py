@@ -29,6 +29,7 @@ class InitializeWallet(APIView):
         	invgltr = User.objects.filter(username=usr).first()
         	if invgltr is not None:
         		user_auth= authenticate(username=request.POST["customer_xid"])
+        		login(request, invgltr)
         		token = Token.objects.filter(user=invgltr).first().key
         		return Response(
 	                {
@@ -57,14 +58,11 @@ class InitializeWallet(APIView):
 
 class EnableWallet(APIView):
 
-	permission_classes = (AllowAny,)
+	permission_classes = (IsAuthenticated,)
 
 	def get(self, request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			wallet = Wallet.objects.get(owned_by_id=user_id)
+			wallet = Wallet.objects.get(owned_by_id=request.user.id)
 			wallet_data = WalletSerializer(wallet).data
 			return Response(
                 {
@@ -83,10 +81,7 @@ class EnableWallet(APIView):
 
 	def post(self,request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			wallet = Wallet.objects.get(owned_by_id=user_id)
+			wallet = Wallet.objects.get(owned_by_id=request.user.id)
 			if wallet.status == 'Enabled':
 				return Response(
 	                {
@@ -115,10 +110,7 @@ class EnableWallet(APIView):
 
 	def patch(self, request):
 		try:
-			token = request.POST.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			wallet = Wallet.objects.get(owned_by_id=user_id)
+			wallet = Wallet.objects.get(owned_by_id=request.user.id)
 			if request.POST.get('is_disabled') == True:
 				wallet.status = 'Disabled'
 				wallet.save()
@@ -148,15 +140,14 @@ class EnableWallet(APIView):
 
 class WalletDeposit(APIView):
 
+	permission_classes = (IsAuthenticated,)
+
 	def post(self,request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
 			amount = request.POST["amount"]
 			reference_id = request.POST["reference_id"]
 			dep = Deposit()
-			dep.deposited_by_id = user_id
+			dep.deposited_by_id = request.user.id
 			dep.status = 'success'
 			dep.deposited_at = datetime.now()
 			dep.amount = amount
@@ -181,15 +172,14 @@ class WalletDeposit(APIView):
 
 class WalletWithdrawel(APIView):
 
+	permission_classes = (IsAuthenticated,)
+
 	def post(self,request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
 			amount = request.POST["amount"]
 			reference_id = request.POST["reference_id"]
 			dep = Withdrawal()
-			dep.withdrawn_by_id = user_id
+			dep.withdrawn_by_id = request.user.id
 			dep.status = 'success'
 			dep.withdrawn_at = datetime.now()
 			dep.amount = amount

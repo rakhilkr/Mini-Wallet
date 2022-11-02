@@ -3,7 +3,6 @@ from django.contrib.auth.hashers import make_password
 import os
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
-from datetime import datetime
 from urllib.parse import urlencode
 from django.test import (
     Client,
@@ -12,8 +11,6 @@ from django.test import (
 from rest_framework.test import APIClient
 from rest_framework.test import RequestsClient
 from django.contrib.auth import get_user_model
-from datetime import datetime
-
 from .models import Wallet
 
 
@@ -56,7 +53,7 @@ class BaseTestCase(TestCase):
         wallet = Wallet()
         wallet.owned_by = self.user
         wallet.status = 'DISABLED'
-        wallet.enabled_at = datetime.now()
+        wallet.enabled_at = timezone.now()
         wallet.balance = 100
         wallet.save()
 
@@ -90,20 +87,89 @@ class APITestCase(BaseTestCase):
 
     def test_002_wallet_api_url(self):
         """Wallet__api_url."""
-
+        
+        # Success Case
         response = self.client.get('http://127.0.0.1:8000/api/v1/wallet', headers={'Authorization': 'Token ' + self.token.key})
+        self.assertEqual(response.status_code, 200)
+
+        # Error Case
+        response = self.client.get('http://127.0.0.1:8000/api/v1/wallet')
         self.assertEqual(response.status_code, 200)
 
     def test_003_enable_wallet_api_url(self):
         """Wallet_enable_api_url."""
 
+        # Success Case
         response = self.client.post('http://127.0.0.1:8000/api/v1/wallet', headers={'Authorization': 'Token ' + self.token.key})
         self.assertEqual(response.status_code, 200)
 
+        # Error Case
+        response = self.client.get('http://127.0.0.1:8000/api/v1/wallet')
+        self.assertEqual(response.status_code, 200)
 
 
-    def test_003_disable_wallet_api_url(self):
+    def test_004_wallet_deposit_api_url(self):
+        """Wallet_deposit_api_url."""
+
+        wallet = Wallet.objects.filter(owned_by_id=self.user.id).first()
+        balance = wallet.balance
+
+        # Success Case
+        response = self.client.post(
+            'http://127.0.0.1:8000/api/v1/wallet/deposits', 
+            headers={'Authorization': 'Token ' + self.token.key},
+            data={
+                'amount':100,
+                'reference_id':"a2ef245c1561d8ada8018d76165932f2cdea1000"
+            }
+        )
+        walletnew = Wallet.objects.filter(owned_by_id=self.user.id).first()
+        self.assertEqual(response.status_code, 200)
+        self.assertGreaterEqual(walletnew.balance, balance)
+
+        # Error Case
+        response = self.client.get(
+            'http://127.0.0.1:8000/api/v1/wallet/deposits', 
+            headers={'Authorization': 'Token ' + self.token.key}
+        )
+        self.assertEqual(response.status_code, 405)
+
+
+    def test_005_wallet_withdrawel_api_url(self):
+        """Wallet_withdrawel_api_url."""
+
+        # Success Case
+        response = self.client.post(
+            'http://127.0.0.1:8000/api/v1/wallet/withdrawals', 
+            headers={'Authorization': 'Token ' + self.token.key},
+            data={
+                'amount':100,
+                'reference_id':"a2ef245c1561d8ada8018d76165932f2cdea1000"
+            }
+        )
+        walletnew = Wallet.objects.filter(owned_by_id=self.user.id).first()
+        self.assertEqual(response.status_code, 200)
+
+        # Error Case 
+        response = self.client.get(
+            'http://127.0.0.1:8000/api/v1/wallet/withdrawals', 
+            headers={'Authorization': 'Token ' + self.token.key}
+        )
+        self.assertEqual(response.status_code, 405)
+
+    def test_006_disable_wallet_api_url(self):
         """Wallet_disable_api_url."""
 
-        response = self.client.patch('http://127.0.0.1:8000/api/v1/wallet', headers={'Authorization': 'Token ' + self.token.key})
+        # Success Case
+        response = self.client.patch(
+            'http://127.0.0.1:8000/api/v1/wallet', 
+            headers={'Authorization': 'Token ' + self.token.key}
+        )
         self.assertEqual(response.status_code, 200)
+
+        # Error Case 
+        response = self.client.delete(
+            'http://127.0.0.1:8000/api/v1/wallet', 
+            headers={'Authorization': 'Token ' + self.token.key}
+        )
+        self.assertEqual(response.status_code, 405)

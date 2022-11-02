@@ -9,11 +9,10 @@ from rest_framework.permissions import AllowAny ,IsAuthenticated
 from django.db import transaction
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,login
+from django.utils import timezone
 
 from .models import *
 from .serializers import *
-
-from datetime import datetime
 
 import logging,traceback
 logger=logging.getLogger(__name__)
@@ -124,7 +123,7 @@ class EnableWallet(APIView):
 			else:
 				return Response(
 	                {
-	                    "data": wallet_data,
+	                    "data": [],
 	                    "status": "Already Disabled"
 	                },
 	            )
@@ -146,17 +145,17 @@ class WalletDeposit(APIView):
 		try:
 			with transaction.atomic():
 				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
-				amount = request.POST["amount"]
+				amount = int(request.POST["amount"])
 				reference_id = request.POST["reference_id"]
 				dep = Deposit()
 				dep.deposited_by_id = request.user.id
 				dep.status = 'success'
-				dep.deposited_at = datetime.now()
-				dep.amount = amount
+				dep.deposited_at = timezone.now()
+				dep.amount = int(amount)
 				dep.wallet = wallet
 				dep.reference_id = reference_id
 				dep.save()
-				wallet.balance += amount
+				wallet.balance += int(amount)
 				wallet.save()
 				deposit_data = DepositSerializer(dep).data
 				return Response(
@@ -183,23 +182,23 @@ class WalletWithdrawel(APIView):
 		try:
 			with transaction.atomic():
 				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
-				amount = request.POST["amount"]
+				amount = int(request.POST["amount"])
 				reference_id = request.POST["reference_id"]
-				if request.POST["amount"] <= wallet.balance:
+				if int(request.POST["amount"]) <= wallet.balance:
 					dep = Withdrawal()
 					dep.withdrawn_by_id = request.user.id
 					dep.status = 'success'
-					dep.withdrawn_at = datetime.now()
+					dep.withdrawn_at = timezone.now()
 					dep.amount = amount
 					dep.reference_id = reference_id
 					dep.wallet = wallet
 					dep.save()
-					wallet.balance -= amount
+					wallet.balance -= int(amount)
 					wallet.save()
-					withdraw_data = DepositSerializer(dep).data
+					withdraw_data = WithdrawSerializer(dep).data
 					return Response(
 		                {
-		                    "data": deposit_data,
+		                    "data": withdraw_data,
 		                    "status": "success"
 		                },
 		            )

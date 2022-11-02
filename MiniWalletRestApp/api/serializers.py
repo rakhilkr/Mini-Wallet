@@ -23,7 +23,7 @@ class DepositSerializer(serializers.ModelSerializer):
 
 class WithdrawSerializer(serializers.ModelSerializer):
 
-	user = serializers.CharField(source='deposited_by.username')
+	user = serializers.CharField(source='withdrawn_by.username')
 
 	class Meta:
 		model = Withdrawal

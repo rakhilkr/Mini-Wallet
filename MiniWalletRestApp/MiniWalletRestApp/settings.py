@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'api.middleware.MyAuthorizationMiddleware.MyAuthorizationMiddleware'
 ]
 
 ROOT_URLCONF = 'MiniWalletRestApp.urls'
@@ -130,7 +131,8 @@ STATIC_URL = '/static/'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication'
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -138,8 +140,6 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
 
     'DEFAULT_RENDERER_CLASSES': [
-        'djangorestframework_camel_case.render.CamelCaseJSONRenderer', #for camelCase formate
-        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
         'rest_framework_xml.renderers.XMLRenderer',
 
     ],
@@ -148,14 +148,11 @@ REST_FRAMEWORK = {
         'no_underscore_before_number': True,
     },
 
-    'DEFAULT_PARSER_CLASSES': [
-        'djangorestframework_camel_case.parser.CamelCaseFormParser',
-        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
-        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
-    ],
-
 }
 
 AUTHENTICATION_BACKENDS = (
     'api.auth_backend.PasswordlessAuthBackend',
 )
+
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"

@@ -6,14 +6,13 @@ from rest_framework.response import Response # get a perticular response every t
 from rest_framework import status # basically sent back status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny ,IsAuthenticated
-
+from django.db import transaction
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,login
+from django.utils import timezone
 
 from .models import *
 from .serializers import *
-
-from datetime import datetime
 
 import logging,traceback
 logger=logging.getLogger(__name__)
@@ -29,6 +28,7 @@ class InitializeWallet(APIView):
         	invgltr = User.objects.filter(username=usr).first()
         	if invgltr is not None:
         		user_auth= authenticate(username=request.POST["customer_xid"])
+        		login(request, invgltr)
         		token = Token.objects.filter(user=invgltr).first().key
         		return Response(
 	                {
@@ -42,7 +42,7 @@ class InitializeWallet(APIView):
         		return Response(
 	                {
 	                    "data": {},
-	                    "status": "error"
+	                    "status": "User does not exist."
 	                },
 	            )
         except Exception as e:
@@ -57,14 +57,11 @@ class InitializeWallet(APIView):
 
 class EnableWallet(APIView):
 
-	permission_classes = (AllowAny,)
+	permission_classes = (IsAuthenticated,)
 
 	def get(self, request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			wallet = Wallet.objects.get(owned_by_id=user_id)
+			wallet = Wallet.objects.get(owned_by_id=request.user.id)
 			wallet_data = WalletSerializer(wallet).data
 			return Response(
                 {
@@ -77,16 +74,13 @@ class EnableWallet(APIView):
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_403_FORBIDDEN
+                    "status": 'Sorry, No wallet found.'
                 },
             )
 
 	def post(self,request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			wallet = Wallet.objects.get(owned_by_id=user_id)
+			wallet = Wallet.objects.get(owned_by_id=request.user.id)
 			if wallet.status == 'Enabled':
 				return Response(
 	                {
@@ -115,11 +109,8 @@ class EnableWallet(APIView):
 
 	def patch(self, request):
 		try:
-			token = request.POST.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			wallet = Wallet.objects.get(owned_by_id=user_id)
-			if request.POST.get('is_disabled') == True:
+			wallet = Wallet.objects.get(owned_by_id=request.user.id)
+			if request.POST.get('is_disabled') == True and wallet.status == 'Enabled':
 				wallet.status = 'Disabled'
 				wallet.save()
 				wallet_data = WalletSerializer(wallet).data
@@ -132,7 +123,7 @@ class EnableWallet(APIView):
 			else:
 				return Response(
 	                {
-	                    "data": wallet_data,
+	                    "data": [],
 	                    "status": "Already Disabled"
 	                },
 	            )
@@ -148,66 +139,82 @@ class EnableWallet(APIView):
 
 class WalletDeposit(APIView):
 
+	permission_classes = (IsAuthenticated,)
+
 	def post(self,request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			amount = request.POST["amount"]
-			reference_id = request.POST["reference_id"]
-			dep = Deposit()
-			dep.deposited_by_id = user_id
-			dep.status = 'success'
-			dep.deposited_at = datetime.now()
-			dep.amount = amount
-			dep.reference_id = reference_id
-			dep.save()
-			deposit_data = DepositSerializer(dep).data
-			return Response(
-                {
-                    "data": deposit_data,
-                    "status": "success"
-                },
-            )
+			with transaction.atomic():
+				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
+				amount = int(request.POST["amount"])
+				reference_id = request.POST["reference_id"]
+				dep = Deposit()
+				dep.deposited_by_id = request.user.id
+				dep.status = 'success'
+				dep.deposited_at = timezone.now()
+				dep.amount = int(amount)
+				dep.wallet = wallet
+				dep.reference_id = reference_id
+				dep.save()
+				wallet.balance += int(amount)
+				wallet.save()
+				deposit_data = DepositSerializer(dep).data
+				return Response(
+	                {
+	                    "data": deposit_data,
+	                    "status": "success"
+	                },
+	            )
 		except Exception as e:
 			logger.error(e,exc_info=True)
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_403_FORBIDDEN
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR
                 },
             )
 
 
 class WalletWithdrawel(APIView):
 
+	permission_classes = (IsAuthenticated,)
+
 	def post(self,request):
 		try:
-			token = request.headers.get('Token')
-			token_data = Token.objects.filter(key=token).first()
-			user_id = token_data.user_id
-			amount = request.POST["amount"]
-			reference_id = request.POST["reference_id"]
-			dep = Withdrawal()
-			dep.withdrawn_by_id = user_id
-			dep.status = 'success'
-			dep.withdrawn_at = datetime.now()
-			dep.amount = amount
-			dep.reference_id = reference_id
-			dep.save()
-			withdraw_data = DepositSerializer(dep).data
-			return Response(
-                {
-                    "data": deposit_data,
-                    "status": "success"
-                },
-            )
+			with transaction.atomic():
+				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
+				amount = int(request.POST["amount"])
+				reference_id = request.POST["reference_id"]
+				if int(request.POST["amount"]) <= wallet.balance:
+					dep = Withdrawal()
+					dep.withdrawn_by_id = request.user.id
+					dep.status = 'success'
+					dep.withdrawn_at = timezone.now()
+					dep.amount = amount
+					dep.reference_id = reference_id
+					dep.wallet = wallet
+					dep.save()
+					wallet.balance -= int(amount)
+					wallet.save()
+					withdraw_data = WithdrawSerializer(dep).data
+					return Response(
+		                {
+		                    "data": withdraw_data,
+		                    "status": "success"
+		                },
+		            )
+				else:
+					return Response(
+						{
+		                    "data": {},
+		                    "status": "You don't have enough balance."
+		                },
+		            )
 		except Exception as e:
 			logger.error(e,exc_info=True)
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_403_FORBIDDEN
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR
                 },
             )
 

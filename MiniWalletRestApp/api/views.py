@@ -43,7 +43,7 @@ class InitializeWallet(APIView):
         		return Response(
 	                {
 	                    "data": {},
-	                    "status": "error"
+	                    "status": "User does not exist."
 	                },
 	            )
         except Exception as e:
@@ -75,7 +75,7 @@ class EnableWallet(APIView):
 			return Response(
                 {
                     "data": {},
-                    "status": status.HTTP_403_FORBIDDEN
+                    "status": 'Sorry, No wallet found.'
                 },
             )
 
@@ -111,7 +111,7 @@ class EnableWallet(APIView):
 	def patch(self, request):
 		try:
 			wallet = Wallet.objects.get(owned_by_id=request.user.id)
-			if request.POST.get('is_disabled') == True:
+			if request.POST.get('is_disabled') == True and wallet.status == 'Enabled':
 				wallet.status = 'Disabled'
 				wallet.save()
 				wallet_data = WalletSerializer(wallet).data
@@ -170,7 +170,7 @@ class WalletDeposit(APIView):
 			return Response(
                 {
                     "data": {},
-                    "status": e
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR
                 },
             )
 
@@ -185,29 +185,37 @@ class WalletWithdrawel(APIView):
 				wallet = Wallet.objects.filter(owned_by_id=request.user.id).first()
 				amount = request.POST["amount"]
 				reference_id = request.POST["reference_id"]
-				dep = Withdrawal()
-				dep.withdrawn_by_id = request.user.id
-				dep.status = 'success'
-				dep.withdrawn_at = datetime.now()
-				dep.amount = amount
-				dep.reference_id = reference_id
-				dep.wallet = wallet
-				dep.save()
-				wallet.balance -= amount
-				wallet.save()
-				withdraw_data = DepositSerializer(dep).data
-				return Response(
-	                {
-	                    "data": deposit_data,
-	                    "status": "success"
-	                },
-	            )
+				if request.POST["amount"] <= wallet.balance:
+					dep = Withdrawal()
+					dep.withdrawn_by_id = request.user.id
+					dep.status = 'success'
+					dep.withdrawn_at = datetime.now()
+					dep.amount = amount
+					dep.reference_id = reference_id
+					dep.wallet = wallet
+					dep.save()
+					wallet.balance -= amount
+					wallet.save()
+					withdraw_data = DepositSerializer(dep).data
+					return Response(
+		                {
+		                    "data": deposit_data,
+		                    "status": "success"
+		                },
+		            )
+				else:
+					return Response(
+						{
+		                    "data": {},
+		                    "status": "You don't have enough balance."
+		                },
+		            )
 		except Exception as e:
 			logger.error(e,exc_info=True)
 			return Response(
                 {
                     "data": {},
-                    "status": e
+                    "status": status.HTTP_500_INTERNAL_SERVER_ERROR
                 },
             )
 
